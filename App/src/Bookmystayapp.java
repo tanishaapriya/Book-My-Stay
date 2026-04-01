@@ -60,6 +60,23 @@ class RoomInventory {
         }
         System.out.println();
     }
+
+    public void decrement(String roomType) {
+        inventory.put(roomType, inventory.get(roomType) - 1);
+    }
+
+    public void increment(String roomType) {
+        inventory.put(roomType, inventory.get(roomType) + 1);
+    }
+}
+
+    public void displayInventory() {
+        System.out.println("Current Inventory:");
+        for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
+            System.out.println(entry.getKey() + " : " + entry.getValue());
+        }
+        System.out.println();
+    }
 }
 
 // Booking Service
