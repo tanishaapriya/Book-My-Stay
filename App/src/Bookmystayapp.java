@@ -120,6 +120,23 @@ class PersistenceService {
             System.out.println("❌ Failed to load state: " + e.getMessage());
             return null;
         }
+        System.out.println();
+    }
+}
+
+// Thread task to simulate guest booking
+class GuestBookingTask implements Runnable {
+    private final BookingService bookingService;
+    private final Reservation reservation;
+
+    public GuestBookingTask(BookingService bookingService, Reservation reservation) {
+        this.bookingService = bookingService;
+        this.reservation = reservation;
+    }
+
+    @Override
+    public void run() {
+        bookingService.confirmBooking(reservation);
     }
 }
 
