@@ -33,8 +33,8 @@ class Reservation {
         return guestName;
     }
 
-    public String getRoomType() {
-        return roomType;
+    public double getPrice() {
+        return price;
     }
 
     public void display() {
