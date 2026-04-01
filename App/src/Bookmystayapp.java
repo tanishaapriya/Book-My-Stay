@@ -1,133 +1,153 @@
 /**
- * UseCase4RoomSearch
+ * UseCase8BookingHistoryReport
  *
- * This program demonstrates read-only room search functionality.
- * It retrieves room availability from a centralized inventory
- * and displays only available room types with their details.
+ * This program demonstrates storing confirmed bookings
+ * and generating reports from booking history.
  *
- * No modification is made to the system state during search.
+ * It uses List to maintain insertion order (chronological history)
+ * and separates storage from reporting logic.
  *
  * @author Admin
- * @version 4.0
+ * @version 8.0
  */
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-// Abstract Room class
-abstract class Room {
-    protected String roomType;
-    protected int beds;
-    protected double price;
+// Reservation class (confirmed booking)
+class Reservation {
+    private String reservationId;
+    private String guestName;
+    private String roomType;
 
-    public Room(String roomType, int beds, double price) {
+    public Reservation(String reservationId, String guestName, String roomType) {
+        this.reservationId = reservationId;
+        this.guestName = guestName;
         this.roomType = roomType;
-        this.beds = beds;
-        this.price = price;
     }
 
-    public void displayDetails() {
-        System.out.println("Room Type : " + roomType);
-        System.out.println("Beds      : " + beds);
-        System.out.println("Price     : $" + price);
+    public String getReservationId() {
+        return reservationId;
+    }
+
+    public String getGuestName() {
+        return guestName;
     }
 
     public String getRoomType() {
         return roomType;
     }
-}
 
-// Concrete Room Types
-class SingleRoom extends Room {
-    public SingleRoom() {
-        super("Single Room", 1, 1000.0);
+    public void display() {
+        System.out.println("Reservation ID : " + reservationId);
+        System.out.println("Guest Name     : " + guestName);
+        System.out.println("Room Type      : " + roomType);
+        System.out.println("----------------------------------");
     }
 }
 
-class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super("Double Room", 2, 1800.0);
+// Booking History (Data Storage)
+class BookingHistory {
+
+    private List<Reservation> history;
+
+    public BookingHistory() {
+        history = new ArrayList<>();
+    }
+
+    // Add confirmed booking
+    public void addReservation(Reservation reservation) {
+        history.add(reservation);
+        System.out.println("Reservation stored: " + reservation.getReservationId());
+    }
+
+    // Retrieve all bookings
+    public List<Reservation> getAllReservations() {
+        return history; // read-only usage expected
     }
 }
 
-class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super("Suite Room", 3, 3000.0);
-    }
-}
+// Reporting Service
+class BookingReportService {
 
-// Centralized Inventory (Read-only usage here)
-class RoomInventory {
+    private BookingHistory history;
 
-    private Map<String, Integer> inventory;
-
-    public RoomInventory() {
-        inventory = new HashMap<>();
-        inventory.put("Single Room", 5);
-        inventory.put("Double Room", 3);
-        inventory.put("Suite Room", 0); // Example: unavailable
+    public BookingReportService(BookingHistory history) {
+        this.history = history;
     }
 
-    // Read-only method
-    public int getAvailability(String roomType) {
-        return inventory.getOrDefault(roomType, 0);
-    }
-}
+    // Display all bookings
+    public void displayAllBookings() {
 
-// Search Service (Read-only logic)
-class RoomSearchService {
+        System.out.println("\n=== Booking History (Chronological) ===\n");
 
-    private RoomInventory inventory;
+        List<Reservation> reservations = history.getAllReservations();
 
-    public RoomSearchService(RoomInventory inventory) {
-        this.inventory = inventory;
-    }
-
-    public void searchAvailableRooms(Room[] rooms) {
-
-        System.out.println("\n--- Available Rooms ---\n");
-
-        for (Room room : rooms) {
-
-            int available = inventory.getAvailability(room.getRoomType());
-
-            // Filter unavailable rooms
-            if (available > 0) {
-                room.displayDetails();
-                System.out.println("Available : " + available);
-                System.out.println("----------------------------------");
-            }
+        if (reservations.isEmpty()) {
+            System.out.println("No bookings found.");
+            return;
         }
+
+        for (Reservation r : reservations) {
+            r.display();
+        }
+    }
+
+    // Generate summary report
+    public void generateSummary() {
+
+        System.out.println("\n=== Booking Summary Report ===\n");
+
+        List<Reservation> reservations = history.getAllReservations();
+
+        Map<String, Integer> roomCount = new HashMap<>();
+
+        for (Reservation r : reservations) {
+            roomCount.put(
+                    r.getRoomType(),
+                    roomCount.getOrDefault(r.getRoomType(), 0) + 1
+            );
+        }
+
+        for (Map.Entry<String, Integer> entry : roomCount.entrySet()) {
+            System.out.println("Room Type : " + entry.getKey() +
+                    " | Bookings : " + entry.getValue());
+        }
+
+        System.out.println("----------------------------------");
+        System.out.println("Total Bookings : " + reservations.size());
     }
 }
 
 // Main Class
-public class UseCase4RoomSearch {
+public class UseCase8BookingHistoryReport {
 
     public static void main(String[] args) {
 
         System.out.println("======================================");
         System.out.println("     Welcome to Book My Stay App      ");
         System.out.println("======================================");
-        System.out.println("Version : v4.0");
+        System.out.println("Version : v8.0");
         System.out.println("--------------------------------------");
 
-        // Initialize inventory
-        RoomInventory inventory = new RoomInventory();
+        // Initialize history
+        BookingHistory history = new BookingHistory();
 
-        // Create room objects
-        Room[] rooms = {
-                new SingleRoom(),
-                new DoubleRoom(),
-                new SuiteRoom()
-        };
+        // Simulate confirmed bookings (from UC6)
+        history.addReservation(new Reservation("SR1", "Alice", "Single Room"));
+        history.addReservation(new Reservation("SR2", "Bob", "Single Room"));
+        history.addReservation(new Reservation("DR1", "Charlie", "Double Room"));
+        history.addReservation(new Reservation("SU1", "Diana", "Suite Room"));
 
-        // Initialize search service
-        RoomSearchService searchService = new RoomSearchService(inventory);
+        // Initialize reporting service
+        BookingReportService reportService = new BookingReportService(history);
 
-        // Perform search (read-only)
-        searchService.searchAvailableRooms(rooms);
+        // Display booking history
+        reportService.displayAllBookings();
 
-        System.out.println("Search completed. No changes made to inventory.");
+        // Generate summary report
+        reportService.generateSummary();
+
+        System.out.println("\nReporting completed successfully.");
+        System.out.println("Booking history remains unchanged (read-only reporting).");
     }
 }
