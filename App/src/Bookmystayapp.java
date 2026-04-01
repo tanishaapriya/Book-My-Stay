@@ -1,133 +1,171 @@
 /**
- * UseCase4RoomSearch
+ * UseCase12DataPersistenceRecovery
  *
- * This program demonstrates read-only room search functionality.
- * It retrieves room availability from a centralized inventory
- * and displays only available room types with their details.
- *
- * No modification is made to the system state during search.
- *
- * @author Admin
- * @version 4.0
+ * Demonstrates persistence of inventory and booking history using serialization.
+ * Saves state to files on shutdown and restores on startup.
+ * Author: Admin
+ * Version: 12.0
  */
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 
-// Abstract Room class
-abstract class Room {
-    protected String roomType;
-    protected int beds;
-    protected double price;
+// Serializable Reservation class
+class Reservation implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private String reservationId;
+    private String guestName;
+    private String roomType;
 
-    public Room(String roomType, int beds, double price) {
+    public Reservation(String reservationId, String guestName, String roomType) {
+        this.reservationId = reservationId;
+        this.guestName = guestName;
         this.roomType = roomType;
-        this.beds = beds;
-        this.price = price;
     }
 
-    public void displayDetails() {
-        System.out.println("Room Type : " + roomType);
-        System.out.println("Beds      : " + beds);
-        System.out.println("Price     : $" + price);
-    }
+    public String getReservationId() { return reservationId; }
+    public String getGuestName() { return guestName; }
+    public String getRoomType() { return roomType; }
 
-    public String getRoomType() {
-        return roomType;
+    @Override
+    public String toString() {
+        return reservationId + " | " + guestName + " | " + roomType;
     }
 }
 
-// Concrete Room Types
-class SingleRoom extends Room {
-    public SingleRoom() {
-        super("Single Room", 1, 1000.0);
-    }
-}
-
-class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super("Double Room", 2, 1800.0);
-    }
-}
-
-class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super("Suite Room", 3, 3000.0);
-    }
-}
-
-// Centralized Inventory (Read-only usage here)
-class RoomInventory {
-
-    private Map<String, Integer> inventory;
+// Serializable RoomInventory class
+class RoomInventory implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private Map<String, Integer> inventory = new HashMap<>();
 
     public RoomInventory() {
-        inventory = new HashMap<>();
-        inventory.put("Single Room", 5);
-        inventory.put("Double Room", 3);
-        inventory.put("Suite Room", 0); // Example: unavailable
+        inventory.put("Single Room", 2);
+        inventory.put("Double Room", 2);
+        inventory.put("Suite Room", 1);
     }
 
-    // Read-only method
-    public int getAvailability(String roomType) {
-        return inventory.getOrDefault(roomType, 0);
+    public boolean isAvailable(String roomType) {
+        return inventory.getOrDefault(roomType, 0) > 0;
+    }
+
+    public boolean allocateRoom(String roomType) {
+        if (isAvailable(roomType)) {
+            inventory.put(roomType, inventory.get(roomType) - 1);
+            return true;
+        }
+        return false;
+    }
+
+    public void releaseRoom(String roomType) {
+        inventory.put(roomType, inventory.getOrDefault(roomType, 0) + 1);
+    }
+
+    public void displayInventory() {
+        System.out.println("Current Inventory:");
+        for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
+            System.out.println(entry.getKey() + " : " + entry.getValue());
+        }
+        System.out.println();
     }
 }
 
-// Search Service (Read-only logic)
-class RoomSearchService {
+// BookingHistory class to store confirmed reservations
+class BookingHistory implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private List<Reservation> bookings = new ArrayList<>();
 
-    private RoomInventory inventory;
-
-    public RoomSearchService(RoomInventory inventory) {
-        this.inventory = inventory;
+    public void addReservation(Reservation r) {
+        bookings.add(r);
     }
 
-    public void searchAvailableRooms(Room[] rooms) {
-
-        System.out.println("\n--- Available Rooms ---\n");
-
-        for (Room room : rooms) {
-
-            int available = inventory.getAvailability(room.getRoomType());
-
-            // Filter unavailable rooms
-            if (available > 0) {
-                room.displayDetails();
-                System.out.println("Available : " + available);
-                System.out.println("----------------------------------");
+    public void displayBookings() {
+        System.out.println("Booking History:");
+        if (bookings.isEmpty()) {
+            System.out.println("No bookings available.");
+        } else {
+            for (Reservation r : bookings) {
+                System.out.println(r);
             }
+        }
+        System.out.println();
+    }
+
+    public List<Reservation> getBookings() {
+        return bookings;
+    }
+}
+
+// PersistenceService handles saving/loading objects
+class PersistenceService {
+
+    public static void saveState(String fileName, Object obj) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(fileName))) {
+            oos.writeObject(obj);
+            System.out.println("✅ Saved state to " + fileName);
+        } catch (IOException e) {
+            System.out.println("❌ Failed to save state: " + e.getMessage());
+        }
+    }
+
+    public static Object loadState(String fileName) {
+        File file = new File(fileName);
+        if (!file.exists()) {
+            System.out.println("⚠ File not found: " + fileName + ". Initializing new state.");
+            return null;
+        }
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(fileName))) {
+            System.out.println("✅ Loaded state from " + fileName);
+            return ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("❌ Failed to load state: " + e.getMessage());
+            return null;
         }
     }
 }
 
-// Main Class
-public class UseCase4RoomSearch {
+// Main class
+public class UseCase12DataPersistenceRecovery {
 
     public static void main(String[] args) {
 
         System.out.println("======================================");
-        System.out.println("     Welcome to Book My Stay App      ");
+        System.out.println("   Book My Stay App - Data Persistence & Recovery   ");
         System.out.println("======================================");
-        System.out.println("Version : v4.0");
+        System.out.println("Version : v12.0");
         System.out.println("--------------------------------------");
 
-        // Initialize inventory
-        RoomInventory inventory = new RoomInventory();
+        // Load persisted state or initialize new
+        RoomInventory inventory = (RoomInventory) PersistenceService.loadState("inventory.ser");
+        if (inventory == null) inventory = new RoomInventory();
 
-        // Create room objects
-        Room[] rooms = {
-                new SingleRoom(),
-                new DoubleRoom(),
-                new SuiteRoom()
-        };
+        BookingHistory history = (BookingHistory) PersistenceService.loadState("history.ser");
+        if (history == null) history = new BookingHistory();
 
-        // Initialize search service
-        RoomSearchService searchService = new RoomSearchService(inventory);
+        // Simulate new bookings
+        Reservation r1 = new Reservation("R201", "Alice", "Single Room");
+        Reservation r2 = new Reservation("R202", "Bob", "Double Room");
 
-        // Perform search (read-only)
-        searchService.searchAvailableRooms(rooms);
+        if (inventory.allocateRoom(r1.getRoomType())) history.addReservation(r1);
+        if (inventory.allocateRoom(r2.getRoomType())) history.addReservation(r2);
 
-        System.out.println("Search completed. No changes made to inventory.");
+        System.out.println("\nAfter New Bookings:");
+        history.displayBookings();
+        inventory.displayInventory();
+
+        // Save current state
+        PersistenceService.saveState("inventory.ser", inventory);
+        PersistenceService.saveState("history.ser", history);
+
+        // Simulate system restart by loading state
+        System.out.println("\n--- Simulating System Restart ---\n");
+
+        RoomInventory restoredInventory = (RoomInventory) PersistenceService.loadState("inventory.ser");
+        BookingHistory restoredHistory = (BookingHistory) PersistenceService.loadState("history.ser");
+
+        System.out.println("\nRestored System State:");
+        restoredHistory.displayBookings();
+        restoredInventory.displayInventory();
+
+        System.out.println("✅ System recovery successful. All state restored correctly.");
     }
 }
