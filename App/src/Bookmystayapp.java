@@ -1,133 +1,133 @@
 /**
- * UseCase4RoomSearch
+ * UseCase7AddOnServiceSelection
  *
- * This program demonstrates read-only room search functionality.
- * It retrieves room availability from a centralized inventory
- * and displays only available room types with their details.
+ * This program demonstrates how add-on services can be attached
+ * to a reservation without modifying core booking logic.
  *
- * No modification is made to the system state during search.
+ * It uses Map<String, List<Service>> to maintain a one-to-many
+ * relationship between reservation and services.
  *
  * @author Admin
- * @version 4.0
+ * @version 7.0
  */
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-// Abstract Room class
-abstract class Room {
-    protected String roomType;
-    protected int beds;
-    protected double price;
+// Service class (Add-On)
+class Service {
+    private String serviceName;
+    private double price;
 
-    public Room(String roomType, int beds, double price) {
-        this.roomType = roomType;
-        this.beds = beds;
+    public Service(String serviceName, double price) {
+        this.serviceName = serviceName;
         this.price = price;
     }
 
-    public void displayDetails() {
-        System.out.println("Room Type : " + roomType);
-        System.out.println("Beds      : " + beds);
-        System.out.println("Price     : $" + price);
+    public String getServiceName() {
+        return serviceName;
     }
 
-    public String getRoomType() {
-        return roomType;
+    public double getPrice() {
+        return price;
     }
-}
 
-// Concrete Room Types
-class SingleRoom extends Room {
-    public SingleRoom() {
-        super("Single Room", 1, 1000.0);
+    public void displayService() {
+        System.out.println("Service : " + serviceName + " | Cost : $" + price);
     }
 }
 
-class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super("Double Room", 2, 1800.0);
-    }
-}
+// Add-On Service Manager
+class AddOnServiceManager {
 
-class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super("Suite Room", 3, 3000.0);
-    }
-}
+    // Map: Reservation ID -> List of Services
+    private Map<String, List<Service>> serviceMap = new HashMap<>();
 
-// Centralized Inventory (Read-only usage here)
-class RoomInventory {
+    // Add service to a reservation
+    public void addService(String reservationId, Service service) {
 
-    private Map<String, Integer> inventory;
+        serviceMap
+                .computeIfAbsent(reservationId, k -> new ArrayList<>())
+                .add(service);
 
-    public RoomInventory() {
-        inventory = new HashMap<>();
-        inventory.put("Single Room", 5);
-        inventory.put("Double Room", 3);
-        inventory.put("Suite Room", 0); // Example: unavailable
+        System.out.println("Added service '" + service.getServiceName()
+                + "' to Reservation ID: " + reservationId);
     }
 
-    // Read-only method
-    public int getAvailability(String roomType) {
-        return inventory.getOrDefault(roomType, 0);
+    // Display services for a reservation
+    public void displayServices(String reservationId) {
+
+        List<Service> services = serviceMap.get(reservationId);
+
+        if (services == null || services.isEmpty()) {
+            System.out.println("No add-on services for Reservation ID: " + reservationId);
+            return;
+        }
+
+        System.out.println("\n--- Add-On Services for Reservation ID: " + reservationId + " ---");
+
+        for (Service s : services) {
+            s.displayService();
+        }
     }
-}
 
-// Search Service (Read-only logic)
-class RoomSearchService {
+    // Calculate total cost of services
+    public double calculateTotalCost(String reservationId) {
 
-    private RoomInventory inventory;
+        List<Service> services = serviceMap.get(reservationId);
 
-    public RoomSearchService(RoomInventory inventory) {
-        this.inventory = inventory;
-    }
+        double total = 0;
 
-    public void searchAvailableRooms(Room[] rooms) {
-
-        System.out.println("\n--- Available Rooms ---\n");
-
-        for (Room room : rooms) {
-
-            int available = inventory.getAvailability(room.getRoomType());
-
-            // Filter unavailable rooms
-            if (available > 0) {
-                room.displayDetails();
-                System.out.println("Available : " + available);
-                System.out.println("----------------------------------");
+        if (services != null) {
+            for (Service s : services) {
+                total += s.getPrice();
             }
         }
+
+        return total;
     }
 }
 
 // Main Class
-public class UseCase4RoomSearch {
+public class UseCase7AddOnServiceSelection {
 
     public static void main(String[] args) {
 
         System.out.println("======================================");
         System.out.println("     Welcome to Book My Stay App      ");
         System.out.println("======================================");
-        System.out.println("Version : v4.0");
+        System.out.println("Version : v7.0");
         System.out.println("--------------------------------------");
 
-        // Initialize inventory
-        RoomInventory inventory = new RoomInventory();
+        // Simulated reservation IDs (from Use Case 6)
+        String reservation1 = "SR1";
+        String reservation2 = "DR1";
 
-        // Create room objects
-        Room[] rooms = {
-                new SingleRoom(),
-                new DoubleRoom(),
-                new SuiteRoom()
-        };
+        // Create service manager
+        AddOnServiceManager manager = new AddOnServiceManager();
 
-        // Initialize search service
-        RoomSearchService searchService = new RoomSearchService(inventory);
+        // Define available services
+        Service breakfast = new Service("Breakfast", 200.0);
+        Service wifi = new Service("WiFi", 100.0);
+        Service spa = new Service("Spa Access", 500.0);
 
-        // Perform search (read-only)
-        searchService.searchAvailableRooms(rooms);
+        // Add services to reservations
+        manager.addService(reservation1, breakfast);
+        manager.addService(reservation1, wifi);
 
-        System.out.println("Search completed. No changes made to inventory.");
+        manager.addService(reservation2, spa);
+
+        // Display services
+        manager.displayServices(reservation1);
+        System.out.println("Total Add-On Cost : $" +
+                manager.calculateTotalCost(reservation1));
+
+        System.out.println("--------------------------------------");
+
+        manager.displayServices(reservation2);
+        System.out.println("Total Add-On Cost : $" +
+                manager.calculateTotalCost(reservation2));
+
+        System.out.println("\nAdd-on services processed successfully.");
+        System.out.println("Core booking and inventory remain unchanged.");
     }
 }
