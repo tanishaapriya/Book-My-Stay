@@ -1,35 +1,33 @@
 /**
- * UseCase4RoomSearch
+ * UseCase10BookingCancellation
  *
- * This program demonstrates read-only room search functionality.
- * It retrieves room availability from a centralized inventory
- * and displays only available room types with their details.
- *
- * No modification is made to the system state during search.
+ * This program demonstrates safe booking cancellation in the Book My Stay App.
+ * It restores inventory, tracks released room IDs, and updates booking history.
  *
  * @author Admin
- * @version 4.0
+ * @version 10.0
  */
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-// Abstract Room class
-abstract class Room {
-    protected String roomType;
-    protected int beds;
-    protected double price;
+// Reservation class
+class Reservation {
+    private String reservationId;
+    private String guestName;
+    private String roomType;
 
-    public Room(String roomType, int beds, double price) {
+    public Reservation(String reservationId, String guestName, String roomType) {
+        this.reservationId = reservationId;
+        this.guestName = guestName;
         this.roomType = roomType;
-        this.beds = beds;
-        this.price = price;
     }
 
-    public void displayDetails() {
-        System.out.println("Room Type : " + roomType);
-        System.out.println("Beds      : " + beds);
-        System.out.println("Price     : $" + price);
+    public String getReservationId() {
+        return reservationId;
+    }
+
+    public String getGuestName() {
+        return guestName;
     }
 
     public String getRoomType() {
@@ -37,97 +35,148 @@ abstract class Room {
     }
 }
 
-// Concrete Room Types
-class SingleRoom extends Room {
-    public SingleRoom() {
-        super("Single Room", 1, 1000.0);
-    }
-}
-
-class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super("Double Room", 2, 1800.0);
-    }
-}
-
-class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super("Suite Room", 3, 3000.0);
-    }
-}
-
-// Centralized Inventory (Read-only usage here)
+// Inventory service
 class RoomInventory {
 
-    private Map<String, Integer> inventory;
+    private Map<String, Integer> inventory = new HashMap<>();
 
     public RoomInventory() {
-        inventory = new HashMap<>();
-        inventory.put("Single Room", 5);
-        inventory.put("Double Room", 3);
-        inventory.put("Suite Room", 0); // Example: unavailable
+        inventory.put("Single Room", 2);
+        inventory.put("Double Room", 2);
+        inventory.put("Suite Room", 1);
     }
 
-    // Read-only method
+    public boolean isValidRoomType(String roomType) {
+        return inventory.containsKey(roomType);
+    }
+
     public int getAvailability(String roomType) {
         return inventory.getOrDefault(roomType, 0);
     }
+
+    public void decrement(String roomType) {
+        inventory.put(roomType, inventory.get(roomType) - 1);
+    }
+
+    public void increment(String roomType) {
+        inventory.put(roomType, inventory.get(roomType) + 1);
+    }
+
+    public void displayInventory() {
+        System.out.println("Current Inventory:");
+        for (Map.Entry<String, Integer> entry : inventory.entrySet()) {
+            System.out.println(entry.getKey() + " : " + entry.getValue());
+        }
+        System.out.println();
+    }
 }
 
-// Search Service (Read-only logic)
-class RoomSearchService {
+// Booking Service
+class BookingService {
 
     private RoomInventory inventory;
+    private Map<String, Reservation> confirmedBookings = new HashMap<>();
+    private Stack<String> rollbackStack = new Stack<>();
 
-    public RoomSearchService(RoomInventory inventory) {
+    public BookingService(RoomInventory inventory) {
         this.inventory = inventory;
     }
 
-    public void searchAvailableRooms(Room[] rooms) {
+    // Confirm a booking
+    public void confirmBooking(Reservation reservation) {
+        if (!inventory.isValidRoomType(reservation.getRoomType())) {
+            System.out.println("❌ Invalid room type: " + reservation.getRoomType());
+            return;
+        }
 
-        System.out.println("\n--- Available Rooms ---\n");
+        if (inventory.getAvailability(reservation.getRoomType()) <= 0) {
+            System.out.println("❌ Room not available: " + reservation.getRoomType());
+            return;
+        }
 
-        for (Room room : rooms) {
+        // Allocate room
+        inventory.decrement(reservation.getRoomType());
+        confirmedBookings.put(reservation.getReservationId(), reservation);
+        rollbackStack.push(reservation.getReservationId());
 
-            int available = inventory.getAvailability(room.getRoomType());
+        System.out.println("✅ Booking Confirmed for " + reservation.getGuestName() +
+                " (" + reservation.getRoomType() + ")");
+    }
 
-            // Filter unavailable rooms
-            if (available > 0) {
-                room.displayDetails();
-                System.out.println("Available : " + available);
-                System.out.println("----------------------------------");
+    // Cancel a booking
+    public void cancelBooking(String reservationId) {
+        if (!confirmedBookings.containsKey(reservationId)) {
+            System.out.println("❌ Cannot cancel: Reservation ID not found: " + reservationId);
+            return;
+        }
+
+        Reservation res = confirmedBookings.get(reservationId);
+
+        // Restore inventory
+        inventory.increment(res.getRoomType());
+
+        // Remove from confirmed bookings
+        confirmedBookings.remove(reservationId);
+
+        // Track rollback
+        rollbackStack.push(reservationId);
+
+        System.out.println("🔄 Booking Cancelled for " + res.getGuestName() +
+                " (" + res.getRoomType() + ")");
+    }
+
+    public void displayConfirmedBookings() {
+        System.out.println("Confirmed Bookings:");
+        if (confirmedBookings.isEmpty()) {
+            System.out.println("None");
+        } else {
+            for (Reservation r : confirmedBookings.values()) {
+                System.out.println(r.getReservationId() + " | " +
+                        r.getGuestName() + " | " +
+                        r.getRoomType());
             }
         }
+        System.out.println();
+    }
+
+    public void displayRollbackStack() {
+        System.out.println("Rollback Stack (recent cancellations/reservations): " + rollbackStack);
+        System.out.println();
     }
 }
 
 // Main Class
-public class UseCase4RoomSearch {
+public class UseCase10BookingCancellation {
 
     public static void main(String[] args) {
 
         System.out.println("======================================");
         System.out.println("     Welcome to Book My Stay App      ");
         System.out.println("======================================");
-        System.out.println("Version : v4.0");
+        System.out.println("Version : v10.0");
         System.out.println("--------------------------------------");
 
-        // Initialize inventory
         RoomInventory inventory = new RoomInventory();
+        BookingService service = new BookingService(inventory);
 
-        // Create room objects
-        Room[] rooms = {
-                new SingleRoom(),
-                new DoubleRoom(),
-                new SuiteRoom()
-        };
+        // Confirm some bookings
+        service.confirmBooking(new Reservation("R001", "Alice", "Single Room"));
+        service.confirmBooking(new Reservation("R002", "Bob", "Double Room"));
+        service.confirmBooking(new Reservation("R003", "Charlie", "Suite Room"));
 
-        // Initialize search service
-        RoomSearchService searchService = new RoomSearchService(inventory);
+        inventory.displayInventory();
+        service.displayConfirmedBookings();
 
-        // Perform search (read-only)
-        searchService.searchAvailableRooms(rooms);
+        // Cancel a booking
+        service.cancelBooking("R002");
 
-        System.out.println("Search completed. No changes made to inventory.");
+        inventory.displayInventory();
+        service.displayConfirmedBookings();
+        service.displayRollbackStack();
+
+        // Attempt invalid cancellation
+        service.cancelBooking("R999");
+
+        System.out.println("System continues running safely after cancellations.");
     }
 }
