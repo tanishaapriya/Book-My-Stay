@@ -30,10 +30,9 @@ class Reservation {
         return guestName;
     }
 
-    public String getRoomType() {
-        return roomType;
+    public String getGuestName() {
+        return guestName;
     }
-}
 
 // Inventory service
 class RoomInventory {
@@ -61,6 +60,7 @@ class RoomInventory {
     public void increment(String roomType) {
         inventory.put(roomType, inventory.get(roomType) + 1);
     }
+}
 
     public void displayInventory() {
         System.out.println("Current Inventory:");
