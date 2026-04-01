@@ -33,10 +33,9 @@ class Reservation {
         return guestName;
     }
 
-    public String getRoomType() {
-        return roomType;
+    public String getGuestName() {
+        return guestName;
     }
-}
 
 // Inventory Service with validation
 class RoomInventory {
@@ -102,7 +101,7 @@ class BookingValidator {
 // Booking Service with error handling
 class BookingService {
 
-    private RoomInventory inventory;
+    private BookingHistory history;
 
     public BookingService(RoomInventory inventory) {
         this.inventory = inventory;
@@ -126,6 +125,31 @@ class BookingService {
             // Graceful failure handling
             System.out.println("❌ Booking Failed: " + e.getMessage());
         }
+    }
+
+    // Generate summary report
+    public void generateSummary() {
+
+        System.out.println("\n=== Booking Summary Report ===\n");
+
+        List<Reservation> reservations = history.getAllReservations();
+
+        Map<String, Integer> roomCount = new HashMap<>();
+
+        for (Reservation r : reservations) {
+            roomCount.put(
+                    r.getRoomType(),
+                    roomCount.getOrDefault(r.getRoomType(), 0) + 1
+            );
+        }
+
+        for (Map.Entry<String, Integer> entry : roomCount.entrySet()) {
+            System.out.println("Room Type : " + entry.getKey() +
+                    " | Bookings : " + entry.getValue());
+        }
+
+        System.out.println("----------------------------------");
+        System.out.println("Total Bookings : " + reservations.size());
     }
 }
 
