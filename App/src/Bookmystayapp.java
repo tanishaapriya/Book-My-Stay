@@ -1,96 +1,133 @@
 /**
- * UseCase2RoomInitialization
+ * UseCase7AddOnServiceSelection
  *
- * This program demonstrates object-oriented modeling using abstraction,
- * inheritance, and polymorphism in a Hotel Booking System.
+ * This program demonstrates how add-on services can be attached
+ * to a reservation without modifying core booking logic.
  *
- * It defines different room types and displays their availability.
+ * It uses Map<String, List<Service>> to maintain a one-to-many
+ * relationship between reservation and services.
  *
  * @author Admin
- * @version 2.1
+ * @version 7.0
  */
 
-// Abstract class
-abstract class Room {
-    protected String roomType;
-    protected int beds;
-    protected double price;
+import java.util.*;
 
-    // Constructor
-    public Room(String roomType, int beds, double price) {
-        this.roomType = roomType;
-        this.beds = beds;
+// Service class (Add-On)
+class Service {
+    private String serviceName;
+    private double price;
+
+    public Service(String serviceName, double price) {
+        this.serviceName = serviceName;
         this.price = price;
     }
 
-    // Method to display room details
-    public void displayRoomDetails() {
-        System.out.println("Room Type : " + roomType);
-        System.out.println("Beds      : " + beds);
-        System.out.println("Price     : $" + price);
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void displayService() {
+        System.out.println("Service : " + serviceName + " | Cost : $" + price);
     }
 }
 
-// Single Room class
-class SingleRoom extends Room {
+// Add-On Service Manager
+class AddOnServiceManager {
 
-    public SingleRoom() {
-        super("Single Room", 1, 1000.0);
+    // Map: Reservation ID -> List of Services
+    private Map<String, List<Service>> serviceMap = new HashMap<>();
+
+    // Add service to a reservation
+    public void addService(String reservationId, Service service) {
+
+        serviceMap
+                .computeIfAbsent(reservationId, k -> new ArrayList<>())
+                .add(service);
+
+        System.out.println("Added service '" + service.getServiceName()
+                + "' to Reservation ID: " + reservationId);
+    }
+
+    // Display services for a reservation
+    public void displayServices(String reservationId) {
+
+        List<Service> services = serviceMap.get(reservationId);
+
+        if (services == null || services.isEmpty()) {
+            System.out.println("No add-on services for Reservation ID: " + reservationId);
+            return;
+        }
+
+        System.out.println("\n--- Add-On Services for Reservation ID: " + reservationId + " ---");
+
+        for (Service s : services) {
+            s.displayService();
+        }
+    }
+
+    // Calculate total cost of services
+    public double calculateTotalCost(String reservationId) {
+
+        List<Service> services = serviceMap.get(reservationId);
+
+        double total = 0;
+
+        if (services != null) {
+            for (Service s : services) {
+                total += s.getPrice();
+            }
+        }
+
+        return total;
     }
 }
 
-// Double Room class
-class DoubleRoom extends Room {
-
-    public DoubleRoom() {
-        super("Double Room", 2, 1800.0);
-    }
-}
-
-// Suite Room class
-class SuiteRoom extends Room {
-
-    public SuiteRoom() {
-        super("Suite Room", 3, 3000.0);
-    }
-}
-
-// Main class
-public class UseCase2RoomInitialization {
+// Main Class
+public class UseCase7AddOnServiceSelection {
 
     public static void main(String[] args) {
 
         System.out.println("======================================");
         System.out.println("     Welcome to Book My Stay App      ");
         System.out.println("======================================");
-        System.out.println("Version : v2.1");
+        System.out.println("Version : v7.0");
         System.out.println("--------------------------------------");
 
-        // Creating room objects (Polymorphism)
-        Room single = new SingleRoom();
-        Room doubleRoom = new DoubleRoom();
-        Room suite = new SuiteRoom();
+        // Simulated reservation IDs (from Use Case 6)
+        String reservation1 = "SR1";
+        String reservation2 = "DR1";
 
-        // Static availability variables
-        int singleAvailable = 5;
-        int doubleAvailable = 3;
-        int suiteAvailable = 2;
+        // Create service manager
+        AddOnServiceManager manager = new AddOnServiceManager();
 
-        // Display details
-        System.out.println("\n--- Room Details & Availability ---\n");
+        // Define available services
+        Service breakfast = new Service("Breakfast", 200.0);
+        Service wifi = new Service("WiFi", 100.0);
+        Service spa = new Service("Spa Access", 500.0);
 
-        single.displayRoomDetails();
-        System.out.println("Available : " + singleAvailable);
-        System.out.println("----------------------------------");
+        // Add services to reservations
+        manager.addService(reservation1, breakfast);
+        manager.addService(reservation1, wifi);
 
-        doubleRoom.displayRoomDetails();
-        System.out.println("Available : " + doubleAvailable);
-        System.out.println("----------------------------------");
+        manager.addService(reservation2, spa);
 
-        suite.displayRoomDetails();
-        System.out.println("Available : " + suiteAvailable);
-        System.out.println("----------------------------------");
+        // Display services
+        manager.displayServices(reservation1);
+        System.out.println("Total Add-On Cost : $" +
+                manager.calculateTotalCost(reservation1));
 
-        System.out.println("Application execution completed.");
+        System.out.println("--------------------------------------");
+
+        manager.displayServices(reservation2);
+        System.out.println("Total Add-On Cost : $" +
+                manager.calculateTotalCost(reservation2));
+
+        System.out.println("\nAdd-on services processed successfully.");
+        System.out.println("Core booking and inventory remain unchanged.");
     }
 }
