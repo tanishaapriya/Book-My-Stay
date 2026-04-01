@@ -1,35 +1,36 @@
 /**
- * UseCase4RoomSearch
+ * UseCase9ErrorHandlingValidation
  *
- * This program demonstrates read-only room search functionality.
- * It retrieves room availability from a centralized inventory
- * and displays only available room types with their details.
+ * This program demonstrates validation and error handling
+ * using custom exceptions in a booking system.
  *
- * No modification is made to the system state during search.
+ * It ensures invalid inputs are caught early and handled gracefully.
  *
  * @author Admin
- * @version 4.0
+ * @version 9.0
  */
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-// Abstract Room class
-abstract class Room {
-    protected String roomType;
-    protected int beds;
-    protected double price;
+// Custom Exception for invalid booking
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
+    }
+}
 
-    public Room(String roomType, int beds, double price) {
+// Reservation class
+class Reservation {
+    private String guestName;
+    private String roomType;
+
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
         this.roomType = roomType;
-        this.beds = beds;
-        this.price = price;
     }
 
-    public void displayDetails() {
-        System.out.println("Room Type : " + roomType);
-        System.out.println("Beds      : " + beds);
-        System.out.println("Price     : $" + price);
+    public String getGuestName() {
+        return guestName;
     }
 
     public String getRoomType() {
@@ -37,97 +38,128 @@ abstract class Room {
     }
 }
 
-// Concrete Room Types
-class SingleRoom extends Room {
-    public SingleRoom() {
-        super("Single Room", 1, 1000.0);
-    }
-}
-
-class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super("Double Room", 2, 1800.0);
-    }
-}
-
-class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super("Suite Room", 3, 3000.0);
-    }
-}
-
-// Centralized Inventory (Read-only usage here)
+// Inventory Service with validation
 class RoomInventory {
 
-    private Map<String, Integer> inventory;
+    private Map<String, Integer> inventory = new HashMap<>();
 
     public RoomInventory() {
-        inventory = new HashMap<>();
-        inventory.put("Single Room", 5);
-        inventory.put("Double Room", 3);
-        inventory.put("Suite Room", 0); // Example: unavailable
+        inventory.put("Single Room", 1);
+        inventory.put("Double Room", 1);
+        inventory.put("Suite Room", 0); // unavailable
     }
 
-    // Read-only method
+    public boolean isValidRoomType(String roomType) {
+        return inventory.containsKey(roomType);
+    }
+
     public int getAvailability(String roomType) {
         return inventory.getOrDefault(roomType, 0);
     }
+
+    public void decrement(String roomType) throws InvalidBookingException {
+
+        int available = getAvailability(roomType);
+
+        if (available <= 0) {
+            throw new InvalidBookingException(
+                    "No rooms available for: " + roomType
+            );
+        }
+
+        inventory.put(roomType, available - 1);
+    }
 }
 
-// Search Service (Read-only logic)
-class RoomSearchService {
+// Validator class
+class BookingValidator {
+
+    public static void validate(Reservation reservation, RoomInventory inventory)
+            throws InvalidBookingException {
+
+        // Validate guest name
+        if (reservation.getGuestName() == null ||
+                reservation.getGuestName().trim().isEmpty()) {
+            throw new InvalidBookingException("Guest name cannot be empty.");
+        }
+
+        // Validate room type
+        if (!inventory.isValidRoomType(reservation.getRoomType())) {
+            throw new InvalidBookingException(
+                    "Invalid room type: " + reservation.getRoomType()
+            );
+        }
+
+        // Validate availability
+        if (inventory.getAvailability(reservation.getRoomType()) <= 0) {
+            throw new InvalidBookingException(
+                    "Room not available: " + reservation.getRoomType()
+            );
+        }
+    }
+}
+
+// Booking Service with error handling
+class BookingService {
 
     private RoomInventory inventory;
 
-    public RoomSearchService(RoomInventory inventory) {
+    public BookingService(RoomInventory inventory) {
         this.inventory = inventory;
     }
 
-    public void searchAvailableRooms(Room[] rooms) {
+    public void processBooking(Reservation reservation) {
 
-        System.out.println("\n--- Available Rooms ---\n");
+        try {
+            // Step 1: Validate input (Fail-Fast)
+            BookingValidator.validate(reservation, inventory);
 
-        for (Room room : rooms) {
+            // Step 2: Allocate room (safe)
+            inventory.decrement(reservation.getRoomType());
 
-            int available = inventory.getAvailability(room.getRoomType());
+            // Step 3: Confirm booking
+            System.out.println("✅ Booking Confirmed for " +
+                    reservation.getGuestName() +
+                    " (" + reservation.getRoomType() + ")");
 
-            // Filter unavailable rooms
-            if (available > 0) {
-                room.displayDetails();
-                System.out.println("Available : " + available);
-                System.out.println("----------------------------------");
-            }
+        } catch (InvalidBookingException e) {
+            // Graceful failure handling
+            System.out.println("❌ Booking Failed: " + e.getMessage());
         }
     }
 }
 
 // Main Class
-public class UseCase4RoomSearch {
+public class UseCase9ErrorHandlingValidation {
 
     public static void main(String[] args) {
 
         System.out.println("======================================");
         System.out.println("     Welcome to Book My Stay App      ");
         System.out.println("======================================");
-        System.out.println("Version : v4.0");
+        System.out.println("Version : v9.0");
         System.out.println("--------------------------------------");
 
-        // Initialize inventory
         RoomInventory inventory = new RoomInventory();
+        BookingService service = new BookingService(inventory);
 
-        // Create room objects
-        Room[] rooms = {
-                new SingleRoom(),
-                new DoubleRoom(),
-                new SuiteRoom()
-        };
+        // Test cases (valid + invalid)
 
-        // Initialize search service
-        RoomSearchService searchService = new RoomSearchService(inventory);
+        // Valid booking
+        service.processBooking(new Reservation("Alice", "Single Room"));
 
-        // Perform search (read-only)
-        searchService.searchAvailableRooms(rooms);
+        // Invalid: empty name
+        service.processBooking(new Reservation("", "Double Room"));
 
-        System.out.println("Search completed. No changes made to inventory.");
+        // Invalid: wrong room type
+        service.processBooking(new Reservation("Bob", "Luxury Room"));
+
+        // Invalid: no availability
+        service.processBooking(new Reservation("Charlie", "Suite Room"));
+
+        // Invalid: exceeding availability
+        service.processBooking(new Reservation("David", "Single Room"));
+
+        System.out.println("\nSystem continues running safely after errors.");
     }
 }
